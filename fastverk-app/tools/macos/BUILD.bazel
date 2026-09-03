@@ -1,0 +1,53 @@
+"""Package the fastverk menu-bar app into a macOS .app + .dmg.
+
+Build explicitly (these are `manual` + `local`):
+  bazel build //tools/macos:fastverk_dmg     # the installer .dmg
+  bazel build //tools/macos:fastverk_app     # just the bundled .app (tar)
+
+Ad-hoc signed by default; pass a Developer ID via the `identity` attr of
+fastverk_app once available. Notarization is gated (see release.yml).
+"""
+
+load("//tools/macos:defs.bzl", "macos_app_bundle", "macos_dmg")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "Info.plist",
+    "entitlements.plist",
+])
+
+# AppIcon.icns comes straight from the brand module (@brand) — generated
+# hermetically there from the canonical mark (full variant); no local
+# sips/iconutil step, and it can't drift from the brand.
+macos_app_bundle(
+    name = "fastverk_app",
+    app_name = "fastverk",
+    binaries = {
+        "//app/desktop:fastverk": "fastverk",
+        "@fvkit//app/daemon:fvd": "fvd",
+        "//app/settings:fastverk-settings": "fastverk-settings",
+        # The SwiftUI Dashboard window (a meridian renderer) + the JSON shim
+        # it shells out to for fvd RPCs. The shim reaches fvd over the socket;
+        # the Dashboard locates both as siblings in Contents/MacOS.
+        "//app/dashboard:fastverk-dashboard": "fastverk-dashboard",
+        "//tools/fvdjson:fvd_json": "fvd-json",
+        # TODO: bundle fv from the meta-repo's published release artifact.
+        # The `//cli/fv:fv` CLI lives in the meta-repo (not this module) and
+        # has no release yet, so it's omitted; the .app still builds without it.
+        "//tools/credhelper:cred_helper": "fastverk-cred-helper",
+    },
+    icon = "@brand//icons:fastverk_full.icns",
+    plist = ":Info.plist",
+    # The Dashboard panel bundle, decoded by the SwiftUI app at startup.
+    resources = {
+        "//proto/fastverk/ui/v1:panels": "panels.binpb",
+    },
+)
+
+macos_dmg(
+    name = "fastverk_dmg",
+    app = ":fastverk_app",
+    app_name = "fastverk",
+    volname = "fastverk",
+)

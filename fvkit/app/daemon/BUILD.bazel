@@ -1,0 +1,28 @@
+"""fvd — the fastverk daemon (gRPC over a Unix socket, wraps fvkit)."""
+
+load("@crates//:defs.bzl", "all_crate_deps")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_binary(
+    name = "fvd",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2021",
+    deps = ["//app/core:fvkit"] + all_crate_deps(
+        package_name = "app/daemon",
+        normal = True,
+    ),
+)
+
+# Plugin-host end-to-end test: spawns the real plugin-echo sidecar (path via
+# ECHO_PLUGIN_BIN, from the `data` dep) and asserts Describe → registry routing.
+rust_test(
+    name = "fvd_test",
+    crate = ":fvd",
+    data = ["//app/plugin-echo"],
+    edition = "2021",
+    env = {"ECHO_PLUGIN_BIN": "$(rootpath //app/plugin-echo:plugin-echo)"},
+)
+
+exports_files(["Cargo.toml"])

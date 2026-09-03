@@ -1,0 +1,29 @@
+"""fvkit (facade) — re-exports fvkit-core (platform-neutral substrate) +
+fvkit-bazel (Bazel surfaces) so backward-compatible consumers (fvd, plugin-echo,
+fv-id, and the external `fv` CLI) keep importing a single `fvkit` crate. The
+proto codegen + version stamp now live in //crates/fvkit-core; this target is a
+pure re-export (see src/lib.rs).
+"""
+
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_library(
+    name = "fvkit",
+    srcs = glob(["src/**/*.rs"]),
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = [
+        "//crates/fvkit-bazel:fvkit_bazel",
+        "//crates/fvkit-core:fvkit_core",
+    ],
+)
+
+rust_test(
+    name = "fvkit_test",
+    crate = ":fvkit",
+    edition = "2021",
+)
+
+exports_files(["Cargo.toml"])

@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-flight runs when a new commit lands on the same ref.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: bazel test //...
+    # The app crates (tao / tray-icon / eframe) link macOS frameworks, so
+    # the build/test runs on macOS only.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.10.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-macos
+          repository-cache: true
+      - run: bazel test //... --test_output=errors
+
+  swift:
+    name: swift renderer (macOS)
+    # macos-latest runners ship a full Xcode, so they build the Swift parts a
+    # Command-Line-Tools-only dev box can't. Validates rules_swift + the apple
+    # CC toolchain on CI, independent of any local Xcode install.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bazel-contrib/setup-bazel@0.10.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-macos-swift
+          repository-cache: true
+      # The Swift surface: the Dashboard app (consumes @meridian//swift:
+      # MeridianUI) + its panel bundle + the fvd-json shim. This compiling is the
+      # real toolchain + renderer validation; the tools/swiftcheck probe is now
+      # redundant and can be removed.
+      - run: bazel build //app/dashboard:fastverk-dashboard
+      # The iOS console — same MeridianUI renderer, built for the simulator
+      # (sim_arm64 needs no code-signing / provisioning profile). Validates the
+      # rules_apple ios_application build + the renderer's #if os(iOS) paths.
+      - run: bazel build //app/ios:FastverkConsole --platforms=//app/ios:ios_sim_arm64
+
+  buildifier:
+    name: buildifier lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install buildifier
+        run: |
+          curl -fsSL -o /usr/local/bin/buildifier \
+            https://github.com/bazelbuild/buildtools/releases/download/v7.3.1/buildifier-linux-amd64
+          chmod +x /usr/local/bin/buildifier
+      - run: buildifier --mode=check --lint=warn -r .

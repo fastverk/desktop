@@ -1,0 +1,24 @@
+{
+  "_comment": "Optional per-module CI overrides. Default bazel command is 'test //... --test_output=errors' on ubuntu-latest and macos-latest. Exit 4 falls back to build //.... Commands mirror each source repo's existing gate (fvkit ci.yml: bazel test //... on Linux+macOS plus connection.proto schema check; fastverk-app ci.yml: bazel test //... and Swift renderer builds on macOS only). Directory keys match on-disk prefixes.",
+  "fvkit": {
+    "bazel": "test //... --test_output=errors",
+    "extra": [
+      {
+        "cmd": "curl -fsSL https://raw.githubusercontent.com/tomato-bazel/cred-helper/main/proto/fastverk/v1/connection.proto -o /tmp/cr.proto && grep -vE '^[[:space:]]*//|^[[:space:]]*$' /tmp/cr.proto > /tmp/cr.norm && grep -vE '^[[:space:]]*//|^[[:space:]]*$' proto/fastverk/v1/connection.proto > /tmp/fv.norm && diff /tmp/cr.norm /tmp/fv.norm",
+        "workdir": ".",
+        "os": "ubuntu-latest"
+      }
+    ]
+  },
+  "fastverk-app": {
+    "os": ["macos-latest"],
+    "bazel": "test //... --test_output=errors",
+    "extra": [
+      {
+        "cmd": "bazel build //app/dashboard:fastverk-dashboard && bazel build //app/ios:FastverkConsole --platforms=//app/ios:ios_sim_arm64",
+        "workdir": ".",
+        "os": "macos-latest"
+      }
+    ]
+  }
+}
