@@ -1,0 +1,16 @@
+[package]
+name = "fvkit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "fastverk core (facade): re-exports fvkit-core (platform-neutral substrate) + fvkit-bazel (Bazel surfaces). Wrapped by fvd; consumed by fv + tbzl."
+
+[lib]
+name = "fvkit"
+path = "src/lib.rs"
+
+[dependencies]
+fvkit-core = { path = "../../crates/fvkit-core" }
+fvkit-bazel = { path = "../../crates/fvkit-bazel" }

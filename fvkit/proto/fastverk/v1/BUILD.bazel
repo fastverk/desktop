@@ -1,0 +1,17 @@
+"""fastverk app gRPC + registry contracts (fastverk.v1).
+
+The fvd daemon contract (fvd.proto) plus the persisted DTOs: the connection
+registry, volume + maintenance state, and repos. fvd.proto imports the other
+three (as `fastverk/v1/<file>.proto`).
+
+Compiled by build.rs (tonic-build) under the cargo_build_script in
+//app/core; the sources are exported here so that build script can data-dep
+each .proto. Self-contained — no proto_library / codegen rule, mirroring how
+forge's proto package exports its single .proto for the build.rs to read."""
+
+package(default_visibility = ["//visibility:public"])
+
+# Exported so //app/core:build_script (build.rs, tonic-build) can data-dep the
+# .proto sources. build.rs walks `../../proto` from CARGO_MANIFEST_DIR =
+# app/core, so the imports resolve as `fastverk/v1/<file>.proto`.
+exports_files(glob(["*.proto"]))
