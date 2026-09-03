@@ -1,0 +1,154 @@
+# fastverk-app — the macOS desktop app (menu-bar tray + egui settings) and
+# the daemon-aware Bazel credential helper.
+#
+# Three crates: `fastverk` (app/desktop, the tao/tray-icon menu-bar binary),
+# `fastverk-settings` (app/settings, the eframe/egui settings window), and
+# `fastverk-cred-helper` (tools/credhelper, the universal Bazel credential
+# helper). All three are gRPC clients of the `fvd` daemon and build on the
+# `fvkit` core library.
+#
+# The fvkit dependency comes via the `fvkit` module (@fvkit//app/core:fvkit
+# and @fvkit//app/daemon:fvd), NOT the crate_universe — so `crate` uses
+# from_specs (third-party crates only) rather than from_cargo, which would
+# otherwise try to double-manage fvkit across the module boundary. This
+# mirrors how `wave` depends on `forge`.
+module(
+    name = "fastverk-app",
+    version = "0.0.2",
+)
+
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "rules_rust", version = "0.70.0")
+bazel_dep(name = "protobuf", version = "33.4")
+
+# Hermetic CC toolchain via zig cc, for the LINUX exec platform only.
+#
+# This repo is primarily a macOS app (rules_swift / rules_apple), and
+# apple_support registers a cc toolchain for darwin. Nothing registered one for
+# linux — but the repo also builds linux container targets
+# (//tools/credhelper:cred_helper_layer), and those pull @bazel_tools' C++
+# launcher. On the RBE worker that fails at resolution:
+#
+#   While resolving toolchains for target @@bazel_tools//src/tools/launcher
+#
+# zig registers linux_amd64/linux_arm64 only, so it complements the Apple
+# toolchain rather than competing with it: darwin builds keep using
+# apple_support exactly as before.
+bazel_dep(name = "hermetic_cc_toolchain", version = "4.1.0")
+
+zig_toolchains = use_extension(
+    "@hermetic_cc_toolchain//toolchain:ext.bzl",
+    "toolchains",
+)
+use_repo(zig_toolchains, "zig_sdk")
+
+register_toolchains(
+    "@zig_sdk//toolchain:linux_amd64_gnu.2.28",
+    "@zig_sdk//toolchain:linux_arm64_gnu.2.28",
+)
+
+bazel_dep(name = "rules_pkg", version = "1.0.1")
+bazel_dep(name = "fvkit", version = "0.0.4")  # plugin architecture + identity.v1.Auth
+bazel_dep(name = "brand", version = "0.2.0")  # AppIcon + tray icon (package dep, no vendoring)
+bazel_dep(name = "meridian", version = "0.2.6")  # proto-driven UI framework: panel-bundle rule + Swift renderer (//swift:MeridianUI)
+
+# Native macOS UI: the SwiftUI Dashboard window (app/dashboard) is a meridian
+# renderer. rules_swift + rules_apple resolve from BCR (second registry in the
+# chain), so they are NOT vendored into the private fastverk registry. They pull
+# a compatible apple_support transitively (don't pin it — the 1.x/2.x skew).
+bazel_dep(name = "rules_swift", version = "3.6.1")
+bazel_dep(name = "rules_apple", version = "4.5.3")
+
+# apple_support is pulled transitively (rules_apple wants 2.2.0), but its CC
+# toolchain must be registered HERE in the root module so it outranks Bazel's
+# autoconf "local" toolchain for darwin host builds — otherwise rules_swift
+# fails with "Invalid target triple: local". Pin 2.2.0 to match rules_apple.
+bazel_dep(name = "apple_support", version = "2.2.0", repo_name = "build_bazel_apple_support")
+
+apple_cc = use_extension("@build_bazel_apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
+use_repo(apple_cc, "local_config_apple_cc_toolchains")
+
+register_toolchains("@local_config_apple_cc_toolchains//:all")
+
+# meridian 0.2.5 (pinned above) carries the `//swift:MeridianUI` Swift surface
+# the Dashboard (//app/dashboard) and the iOS console (//app/ios) render with —
+# published to the fastverk registry, so no local_path_override is needed. To
+# iterate on the renderer locally, re-add a local_path_override(module_name =
+# "meridian", path = "…/repos/meridian"). Both Swift apps are Xcode-gated
+# (`manual`), so they're built explicitly by CI on macos-latest, not by //....
+
+# @brand generates its icons hermetically with Python (Pillow); register the
+# matching 3.12 toolchain so its pip wheels resolve when we consume the icons.
+bazel_dep(name = "rules_python", version = "1.7.0")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    versions = ["1.95.0"],
+)
+use_repo(rust, "rust_toolchains")
+
+register_toolchains("@rust_toolchains//:all")
+
+# Third-party crates only (fvkit is a module dep, above). Hand-listed via
+# from_specs so the crate_universe is independent of the Cargo.toml's fvkit
+# path dep (which is cargo/IDE-only). Versions/features mirror the original
+# fastverk workspace Cargo.toml.
+crate = use_extension(
+    "@rules_rust//crate_universe:extension.bzl",
+    "crate",
+    isolate = True,
+)
+crate.spec(
+    package = "anyhow",
+    version = "1.0",
+)
+crate.spec(
+    features = ["full"],
+    package = "tokio",
+    version = "1.40",
+)
+
+# JSON in/out for the `fvd-json` shim (tools/fvdjson): the SwiftUI Dashboard's
+# RpcInvoker speaks JSON; the shim emits snake_case proto JSON for it.
+crate.spec(
+    package = "serde_json",
+    version = "1.0",
+)
+
+# Menu-bar app (app/desktop): tao event loop + tray-icon (re-exports muda
+# for the menu, so no separate menu dep / version skew).
+crate.spec(
+    package = "tao",
+    version = "0.30",
+)
+crate.spec(
+    package = "tray-icon",
+    version = "0.19",
+)
+
+# Settings window (app/settings): eframe/egui (glow backend, no wgpu).
+crate.spec(
+    package = "eframe",
+    version = "0.29",
+)
+
+# Decode the PNG logo into the tray icon's RGBA buffer.
+crate.spec(
+    default_features = False,
+    features = ["png"],
+    package = "image",
+    version = "0.25",
+)
+crate.from_specs(name = "crates")
+use_repo(crate, "crates")
+
+# Dev-only.
+bazel_dep(name = "rules_shell", version = "0.6.1", dev_dependency = True)
