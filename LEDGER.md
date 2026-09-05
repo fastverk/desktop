@@ -36,6 +36,29 @@ library + `fvd` daemon, macOS app + credential helper). Do **not** rewrite
 | fvkit | imported | [fastverk/fvkit](https://github.com/fastverk/fvkit) | `ca638b99462a0c9433bfc9845832568044829d31` | fvkit | 0.0.8 | cluster 1; source CI is `bazel test //...` on Linux and macOS plus `connection.proto` schema parity with tomato-bazel/cred-helper; tags `v0.0.1`–`v0.0.9`; MODULE.bazel on HEAD is `0.0.8` (kept); registry.tbzl.dev has `fvkit` 0.0.1–0.0.9 |
 | fastverk-app | imported | [fastverk/fastverk-app](https://github.com/fastverk/fastverk-app) | `985a7a0feee08a95e92331418a0c0f2eb28b6ed6` | fastverk-app | 0.0.2 | cluster 1; source CI is `bazel test //...` on macOS only (tao / tray-icon / eframe link macOS frameworks) plus Swift renderer builds (`//app/dashboard:fastverk-dashboard`, `//app/ios:FastverkConsole`); tags `v0.0.1`–`v0.0.5` and `ios-v0.0.1`–`ios-v0.0.7`; MODULE.bazel on HEAD is `0.0.2` (kept); registry.tbzl.dev has `fastverk-app` 0.0.1–0.0.2 |
 
+### Both source repos are retired
+
+Each source repo's default-branch HEAD equalled its Source SHA above at
+retirement, so the imported trees and the sources were identical and no work
+was stranded. Both now carry a README banner and a `retired` workflow that
+fails a pull request touching anything but that banner. **This vehicle is the
+edit surface.**
+
+The remotes keep their history and every tag: published registry versions
+resolve through the per-repo `vX.Y.Z` tags, and `git_override` pins still
+point at them. They are deliberately **not** archived — that waits until this
+vehicle publishes a release from its own `<module>/vX.Y.Z` tag, so no live
+consumer resolves through a source remote. See
+[Consolidation](https://docs.fastverk.com/consolidation.html).
+
+⚠️ A third copy of `app/desktop`, `app/settings`, `tools/credhelper`, and
+`tools/macos` still lives in `fastverk/fastverk`. Do **not** delete it on
+sight and do **not** copy it here wholesale: that repo's `app/settings` is
+*newer* than this vehicle's (it dropped the BuildBuddy provider on
+2026-08-13; the copy here still offers it), while this vehicle's
+`app/desktop` is far ahead of the meta-repo's. Reconciling them is a
+macOS-verified merge, tracked in the consolidation runbook.
+
 ## Optional later
 
 Not imported in this PR. No additional desktop/runtime modules are queued.
@@ -142,3 +165,10 @@ git subtree pull --prefix=<dir> https://github.com/fastverk/<dir>.git main
 
 No `--squash` — squashing destroys the merge base for future subtree
 pulls. Private/unreachable sources are warnings only.
+
+**Now that both sources are retired, a drift report means something
+different.** It used to mean *this vehicle is stale, pull from source*. It
+now means *someone committed to a retired repo* — the `retired` check was
+bypassed. Replay that commit here, then revert it at source. The audit is
+unchanged; only the reading is. Treating a post-retirement drift report as a
+routine subtree pull would make the retired repo authoritative again.
