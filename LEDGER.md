@@ -56,8 +56,10 @@ consumer resolves through a source remote. See
 sight and do **not** copy it here wholesale: that repo's `app/settings` is
 *newer* than this vehicle's (it dropped the BuildBuddy provider on
 2026-08-13; the copy here still offers it), while this vehicle's
-`app/desktop` is far ahead of the meta-repo's. Reconciling them is a
-macOS-verified merge, tracked in the consolidation runbook.
+`app/desktop` is far ahead of the meta-repo's. File-level classes (A/B/C/D),
+exact source→dest paths, and which ports need a macOS runner are in
+[RECONCILE.md](RECONCILE.md). Do not archive the meta-repo as part of
+that work.
 
 ## Optional later
 
@@ -78,6 +80,9 @@ None. No residue from another imported module belongs here.
       `fastverk/fastverk-app` `v0.0.2`, etc.). Only **new** versions use this
       vehicle's tags.
 - [ ] Source repos are not deleted or archived by this work.
+- [ ] Meta-repo macOS reconcile: [RECONCILE.md](RECONCILE.md). Port the
+      (A) settings BuildBuddy UI on a macOS runner; do not copy trees
+      wholesale; do not archive `fastverk/fastverk`.
 
 ## Follow-up import checklist
 
