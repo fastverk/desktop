@@ -1,9 +1,11 @@
 // Config — the fixed endpoints the iOS console talks to.
 //
-// These mirror the deployed fastverk-web Cognito client + the botnoc-web origin
-// (see saas-console-app-runner: pool us-east-1_aeTUucLNU, web client
-// 2hu1kjtgjp0c5rh0eh0f7jo2a3, hosted UI auth.fastverk.com). The client is a
-// public PKCE client (GenerateSecret:false), so no secret ships in the app.
+// Auth matches the live WorkOS AuthKit setup used by web: hosted UI at
+// login.fastverk.com, User Management API at id.fastverk.com, product origin
+// app.fastverk.com. The AuthKit application is a public PKCE client (no secret
+// ships in the app). Native redirect `fastverk://auth/callback` is already
+// registered on that application alongside the web default
+// `https://app.fastverk.com/auth/callback`.
 
 import Foundation
 
@@ -11,22 +13,28 @@ enum Config {
     /// The web console origin. All /api/* calls are same-origin against this.
     static let appOrigin = URL(string: "https://app.fastverk.com")!
 
-    /// Cognito hosted-UI custom domain (COGNITO_DOMAIN in botnoc-web).
-    static let cognitoDomain = "auth.fastverk.com"
+    /// AuthKit hosted UI (HostedAuthkit custom domain).
+    static let authKitDomain = "login.fastverk.com"
 
-    /// The fastverk-web app-client id (public, PKCE). Shared with the web.
-    /// This is the fastverk-auth stack's UserPoolClientId in aion-dev
-    /// (pool us-east-1_MaCQ9hbpF); fastverk://auth/callback is registered on it.
-    static let cognitoClientId = "270l1tap1n2c3jogeql7op4kh"
+    /// WorkOS Auth API (AuthAPI custom domain) — authorize + authenticate.
+    static let authAPIDomain = "id.fastverk.com"
 
-    /// OAuth scopes — must be a subset of the client's AllowedOAuthScopes.
-    static let scopes = "email openid profile"
+    /// Fastverk production AuthKit client id (public, PKCE).
+    static let clientId = "client_01M0ZD0W24ZTHDBHBG0CSPPWHD"
 
-    /// Native redirect (registered in fastverk-auth.yaml CallbackURLs) + the
-    /// scheme ASWebAuthenticationSession watches for.
+    /// Native redirect (WorkOS AuthKit Redirects) + the scheme
+    /// ASWebAuthenticationSession watches for.
     static let redirectURI = "fastverk://auth/callback"
     static let callbackScheme = "fastverk"
 
-    static var authorizeURL: URL { URL(string: "https://\(cognitoDomain)/oauth2/authorize")! }
-    static var tokenURL: URL { URL(string: "https://\(cognitoDomain)/oauth2/token")! }
+    /// AuthKit access tokens expire in 300s (application accessTokenExpiry).
+    static let accessTokenLifetimeSeconds = 300
+
+    static var authorizeURL: URL {
+        URL(string: "https://\(authAPIDomain)/user_management/authorize")!
+    }
+
+    static var tokenURL: URL {
+        URL(string: "https://\(authAPIDomain)/user_management/authenticate")!
+    }
 }

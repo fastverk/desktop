@@ -1,11 +1,13 @@
-// AuthService — Cognito sign-in for the native console.
+// AuthService — WorkOS AuthKit sign-in for the native console.
 //
 // Uses ASWebAuthenticationSession (system browser context, not an embedded
-// WKWebView) so the OAuth hop works even when Google federation is enabled
-// (Google blocks embedded webviews). Authorization-code + PKCE against the
-// fastverk-web public client, tokens in the Keychain, silent refresh serialized
-// through a single in-flight Task. Mirrors the server contract in
-// botnoc/web/src/auth.rs.
+// WKWebView) so the OAuth hop works with Google federation and AuthKit
+// passkeys (Google blocks embedded webviews). Authorization-code + PKCE
+// against the Fastverk production AuthKit public client: authorize at
+// id.fastverk.com (provider=authkit) lands on login.fastverk.com, then the
+// callback `fastverk://auth/callback` is exchanged at
+// /user_management/authenticate. Tokens in the Keychain; silent refresh is
+// serialized through a single in-flight Task.
 
 import AuthenticationServices
 import CryptoKit
@@ -32,7 +34,7 @@ enum AuthError: Error, CustomStringConvertible {
 final class AuthService: ObservableObject {
     @Published private(set) var isAuthenticated = false
 
-    private var idToken: String?
+    private var accessToken: String?
     private var refreshToken: String?
     private var expiresAt: Date?
 
@@ -44,16 +46,18 @@ final class AuthService: ObservableObject {
 
     // MARK: - Session lifecycle
 
-    /// Restore tokens from the Keychain on launch. If the id_token is still
+    /// Restore tokens from the Keychain on launch. If the access token is still
     /// valid we're signed in immediately; if only a refresh_token survives we
-    /// try a silent refresh.
+    /// try a silent refresh. Leftover Cognito `id_token` keys are dropped so a
+    /// pre-cutover session cannot be sent to AuthKit-backed APIs.
     func restoreSession() async {
-        idToken = Keychain.get("id_token")
+        Keychain.delete("id_token")
+        accessToken = Keychain.get("access_token")
         refreshToken = Keychain.get("refresh_token")
         if let s = Keychain.get("expires_at"), let t = TimeInterval(s) {
             expiresAt = Date(timeIntervalSince1970: t)
         }
-        if let exp = expiresAt, exp > Date(), idToken != nil {
+        if let exp = expiresAt, exp > Date(), accessToken != nil {
             isAuthenticated = true
             return
         }
@@ -63,9 +67,10 @@ final class AuthService: ObservableObject {
     }
 
     func signOut() {
-        idToken = nil
+        accessToken = nil
         refreshToken = nil
         expiresAt = nil
+        Keychain.delete("access_token")
         Keychain.delete("id_token")
         Keychain.delete("refresh_token")
         Keychain.delete("expires_at")
@@ -74,10 +79,10 @@ final class AuthService: ObservableObject {
 
     // MARK: - Token access (for ShellClient / NetworkRpcInvoker)
 
-    /// A currently-valid id_token, refreshing first if it's expired/near-expiry.
-    /// Concurrent callers share one refresh.
+    /// A currently-valid AuthKit access token, refreshing first if it's
+    /// expired/near-expiry. Concurrent callers share one refresh.
     func validIdToken() async throws -> String {
-        if let tok = idToken, let exp = expiresAt, exp > Date() {
+        if let tok = accessToken, let exp = expiresAt, exp > Date() {
             return tok
         }
         return try await refresh()
@@ -98,9 +103,9 @@ final class AuthService: ObservableObject {
         var comps = URLComponents(url: Config.authorizeURL, resolvingAgainstBaseURL: false)!
         comps.queryItems = [
             .init(name: "response_type", value: "code"),
-            .init(name: "client_id", value: Config.cognitoClientId),
-            .init(name: "scope", value: Config.scopes),
+            .init(name: "client_id", value: Config.clientId),
             .init(name: "redirect_uri", value: Config.redirectURI),
+            .init(name: "provider", value: "authkit"),
             .init(name: "state", value: state),
             .init(name: "code_challenge", value: challenge),
             .init(name: "code_challenge_method", value: "S256"),
@@ -123,6 +128,8 @@ final class AuthService: ObservableObject {
                 cont.resume(returning: url)
             }
             s.presentationContextProvider = anchorProvider
+            // Share the system Safari cookie jar so AuthKit passkeys / Google
+            // SSO match the web session on login.fastverk.com.
             s.prefersEphemeralWebBrowserSession = false
             authSession = s
             if !s.start() {
@@ -140,9 +147,8 @@ final class AuthService: ObservableObject {
         }
         try await exchange(grant: [
             "grant_type": "authorization_code",
-            "client_id": Config.cognitoClientId,
+            "client_id": Config.clientId,
             "code": code,
-            "redirect_uri": Config.redirectURI,
             "code_verifier": verifier,
         ])
     }
@@ -160,10 +166,10 @@ final class AuthService: ObservableObject {
         let task = Task { () throws -> String in
             try await self.exchange(grant: [
                 "grant_type": "refresh_token",
-                "client_id": Config.cognitoClientId,
+                "client_id": Config.clientId,
                 "refresh_token": rt,
             ])
-            guard let tok = self.idToken else { throw AuthError.needsLogin }
+            guard let tok = self.accessToken else { throw AuthError.needsLogin }
             return tok
         }
         refreshTask = task
@@ -177,7 +183,9 @@ final class AuthService: ObservableObject {
         }
     }
 
-    /// POST the form grant to Cognito's /oauth2/token and store the result.
+    /// POST the form grant to AuthKit's /user_management/authenticate and store
+    /// the access + refresh tokens. Public clients send PKCE (`code_verifier`)
+    /// and no client secret.
     private func exchange(grant: [String: String]) async throws {
         var req = URLRequest(url: Config.tokenURL)
         req.httpMethod = "POST"
@@ -190,21 +198,21 @@ final class AuthService: ObservableObject {
             throw AuthError.tokenExchange(body.isEmpty ? "HTTP error" : body)
         }
         let token = try JSONDecoder().decode(TokenResponse.self, from: data)
-        idToken = token.id_token
-        if let rt = token.refresh_token { refreshToken = rt } // refresh grant omits it
-        expiresAt = Date().addingTimeInterval(TimeInterval(token.expires_in) - 60) // 60s skew
+        accessToken = token.access_token
+        if let rt = token.refresh_token { refreshToken = rt } // refresh grant may omit it
+        let lifetime = TimeInterval(token.expires_in ?? Config.accessTokenLifetimeSeconds)
+        expiresAt = Date().addingTimeInterval(lifetime - 60) // 60s skew
 
-        Keychain.set(idToken ?? "", for: "id_token")
+        Keychain.set(accessToken ?? "", for: "access_token")
         if let rt = refreshToken { Keychain.set(rt, for: "refresh_token") }
         Keychain.set(String(expiresAt!.timeIntervalSince1970), for: "expires_at")
         isAuthenticated = true
     }
 
     private struct TokenResponse: Decodable {
-        let id_token: String
-        let access_token: String?
+        let access_token: String
         let refresh_token: String?
-        let expires_in: Int
+        let expires_in: Int?
     }
 
     // MARK: - PKCE + form helpers

@@ -4,7 +4,7 @@
 // itself: `field: value` lines, a blank line dispatches the accumulated event,
 // consecutive `data:` lines join with "\n", and `:`-comment / `retry:` lines are
 // ignored (matching the browser EventSource the web console uses). It carries the
-// Cognito Bearer id_token and, on an initial 401, refreshes once and reconnects.
+// AuthKit Bearer access token and, on an initial 401, refreshes once and reconnects.
 // Shared by the live agent-transcript viewer (Phase B) and chat (Phase C).
 
 import Foundation
