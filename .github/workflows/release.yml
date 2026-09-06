@@ -1,20 +1,20 @@
 name: release
 
-# INERT on fastverk/desktop — GitHub only runs workflows at the vehicle
-# root. The live macOS .dmg path is `.github/workflows/release.yml`,
-# triggered by `fastverk-app/vX.Y.Z` tags. This file is imported history
-# from the retired source repo; do not tag `v*` at the vehicle root.
+# Tag `fastverk-app/vX.Y.Z` on this vehicle to build the macOS .app + .dmg
+# and publish a GitHub Release with the .dmg attached.
 #
-# Tag a version (e.g. `git tag v0.0.4 && git push origin v0.0.4`) to build the
-# macOS app + .dmg and publish a GitHub Release with the .dmg attached. The
-# in-app self-updater (fvkit::update) watches this repo's releases and installs
-# the .dmg, so the asset name ends in `.dmg`.
+# Nested `fastverk-app/.github/workflows/release.yml` is inert here — GitHub
+# only runs workflows at the repository root. That file stays as imported
+# history; this workflow is the live path.
 #
-# Notarization: if the Developer ID + App Store Connect API-key secrets below
-# are configured, the .app is Developer ID-signed (hardened runtime), notarized,
-# and stapled — so it downloads + installs with zero Gatekeeper friction.
-# Without them it falls back to an ad-hoc-signed .dmg (Gatekeeper will warn).
-# Required repo secrets (Settings → Secrets and variables → Actions):
+# The in-app self-updater (fvkit::update) looks for a release asset whose
+# name ends in `.dmg`. Asset name is `fastverk-vX.Y.Z.dmg` (prefix stripped).
+#
+# Notarization: if the Developer ID + App Store Connect API-key secrets
+# below are configured, the .app is Developer ID-signed (hardened runtime),
+# notarized, and stapled. Without them it falls back to an ad-hoc-signed
+# .dmg (Gatekeeper will warn). Do not mint these secrets here — copy the
+# existing ones if this repo should notarize.
 #   DEVELOPER_ID_CERT_P12       base64 of the "Developer ID Application" .p12
 #   DEVELOPER_ID_CERT_PASSWORD  the .p12 export password
 #   DEVELOPER_ID_IDENTITY       e.g. "Developer ID Application: Name (TEAMID)"
@@ -25,11 +25,11 @@ name: release
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["fastverk-app/v*"]
 
 permissions:
   contents: write # create the release + upload the asset
-  id-token: write # assume the fastverk-app-cdn-push role (OIDC) to publish to the CDN
+  id-token: write # assume the CDN push role (OIDC) when the trust policy allows
 
 concurrency:
   group: release-${{ github.ref }}
@@ -39,27 +39,34 @@ jobs:
   dmg:
     name: build + publish .dmg (macOS)
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: fastverk-app
     env:
-      # `secrets.* != ''` is usable in step `if:`; gate notarization on the cert.
       HAS_SIGNING: ${{ secrets.DEVELOPER_ID_CERT_P12 != '' }}
-      ASSET: fastverk-${{ github.ref_name }}.dmg
     steps:
       - uses: actions/checkout@v4
       - uses: bazel-contrib/setup-bazel@0.10.0
         with:
           bazelisk-cache: true
 
-      # Build the .app with the version stamped from the tag (so the installed
-      # app reports its real version and doesn't re-nag for updates).
+      - name: resolve version + asset name
+        id: ver
+        working-directory: .
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version="${tag##*/}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "asset=fastverk-${version}.dmg" >> "$GITHUB_OUTPUT"
+
       - name: build the .app (stamped)
         env:
-          FASTVERK_RELEASE_VERSION: ${{ github.ref_name }}
+          FASTVERK_RELEASE_VERSION: ${{ steps.ver.outputs.version }}
         run: |
           bazel build --stamp //tools/macos:fastverk_app
           mkdir -p out && tar -C out -xf bazel-bin/tools/macos/fastverk_app.tar
           test -d out/fastverk.app
 
-      # Developer ID sign + notarize + staple + signed .dmg (when configured).
       - name: sign + notarize + dmg
         if: ${{ env.HAS_SIGNING == 'true' }}
         env:
@@ -70,6 +77,7 @@ jobs:
           AC_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
           AC_ISSUER: ${{ secrets.AC_API_ISSUER_ID }}
           KEYCHAIN_PW: ${{ secrets.KEYCHAIN_PASSWORD }}
+          ASSET: ${{ steps.ver.outputs.asset }}
         run: |
           set -euo pipefail
           KC="$RUNNER_TEMP/fastverk-signing.keychain-db"
@@ -86,35 +94,40 @@ jobs:
             --key "$RUNNER_TEMP/AuthKey.p8" --key-id "$AC_KEY_ID" --issuer "$AC_ISSUER"
           rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/AuthKey.p8"
 
-      # Fallback: ad-hoc .dmg when no Developer ID is configured (Gatekeeper
-      # will warn on download until the secrets above are added).
       - name: ad-hoc .dmg
         if: ${{ env.HAS_SIGNING != 'true' }}
+        env:
+          ASSET: ${{ steps.ver.outputs.asset }}
         run: hdiutil create -volname fastverk -srcfolder out/fastverk.app -ov -format UDZO "$ASSET"
 
       - name: publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          ASSET: ${{ steps.ver.outputs.asset }}
+          VERSION: ${{ steps.ver.outputs.version }}
         run: |
           gh release create "${{ github.ref_name }}" "$ASSET" \
-            --title "fastverk ${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --title "fastverk ${VERSION}" \
             --generate-notes
 
-      # Publish the .dmg + the download landing page to static.fastverk.com so
-      # https://static.fastverk.com/apps/ has the current app. OIDC role from
-      # deploy/cfn/app-distribution.yaml (scoped to fastverk-app tag pushes).
+      # Live IAM still trusts `repo:fastverk/fastverk-app:ref:refs/tags/*`
+      # until that stack is updated. A failure here must not drop the GitHub
+      # Release — that is the install path (`install.sh` + gh release).
       - name: assume the CDN push role (OIDC)
+        continue-on-error: true
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::042825952740:role/fastverk-app-cdn-push
           aws-region: us-east-1
       - name: publish to static.fastverk.com
+        continue-on-error: true
         env:
           BUCKET: fastverk-static-assets-042825952740
           DIST: E1DTPC9TYC7JTS
+          ASSET: ${{ steps.ver.outputs.asset }}
         run: |
           set -euo pipefail
-          # Immutable versioned copy + the mutable "latest" alias the page links to.
           aws s3 cp "$ASSET" "s3://$BUCKET/apps/macos/$ASSET" \
             --content-type application/x-apple-diskimage \
             --cache-control "public,max-age=31536000,immutable"

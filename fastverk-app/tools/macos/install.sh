@@ -2,18 +2,19 @@
 # Install the latest fastverk release into /Applications — no Apple
 # Developer ID required.
 #
-#   gh repo clone fastverk/fastverk … then: bash tools/macos/install.sh
-#   or:  curl -fsSL <raw-url>/tools/macos/install.sh | bash
+#   gh repo clone fastverk/desktop … then:
+#     bash fastverk-app/tools/macos/install.sh
+#   or:  curl -fsSL <raw-url>/fastverk-app/tools/macos/install.sh | bash
 #
-# fastverk/fastverk is a private repo, so this uses the GitHub CLI (you
-# must be a signed-in org member: `brew install gh && gh auth login`).
-# `gh`-downloaded files carry no com.apple.quarantine attribute, so
-# Gatekeeper won't block the (ad-hoc-signed) app. Once a Developer ID +
-# notarization are in place, this script is unchanged — the app just stops
-# triggering any Gatekeeper prompt at all.
+# Releases live on this vehicle (`fastverk-app/vX.Y.Z` tags). The GitHub
+# CLI is required (`brew install gh && gh auth login`). `gh`-downloaded
+# files carry no com.apple.quarantine attribute, so Gatekeeper won't
+# block an ad-hoc-signed app. Once a Developer ID + notarization are in
+# place, this script is unchanged — the app just stops triggering any
+# Gatekeeper prompt at all.
 set -euo pipefail
 
-REPO="fastverk/fastverk"
+REPO="fastverk/desktop"
 APP="/Applications/fastverk.app"
 
 command -v gh >/dev/null 2>&1 || {
