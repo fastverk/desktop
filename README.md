@@ -30,6 +30,7 @@ contracts live in [`fastverk/contracts`](https://github.com/fastverk/contracts)
 desktop/
   README.md                 # this file — vehicle, not a module
   LEDGER.md                 # every include / optional / absorb / exclude row
+  RECONCILE.md              # macOS meta-repo vs this vehicle (file inventory)
   .github/workflows/ci.yml  # one path-filtered workflow
   tools/ci/                 # affected-module detection + ledger check
   tools/ledger-check.sh     # CI entrypoint: LEDGER ↔ dirs ↔ MODULE.bazel
