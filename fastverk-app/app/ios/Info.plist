@@ -19,9 +19,10 @@
   </array>
   <!-- Empty launch screen dict: full-screen on every device (no letterboxing). -->
   <key>UILaunchScreen</key><dict/>
-  <!-- Custom scheme for the Cognito OAuth redirect (fastverk://auth/callback),
-       consumed by ASWebAuthenticationSession. Must match the CallbackURLs on the
-       fastverk-web Cognito client (deploy/cfn/cognito-human/fastverk-auth.yaml). -->
+  <!-- Custom scheme for the AuthKit OAuth redirect (fastverk://auth/callback),
+       consumed by ASWebAuthenticationSession. Must match a Redirect URI on the
+       Fastverk WorkOS AuthKit application (already registered next to the web
+       default https://app.fastverk.com/auth/callback). -->
   <key>CFBundleURLTypes</key>
   <array>
     <dict>

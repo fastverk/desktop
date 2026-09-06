@@ -3,8 +3,9 @@
 // provider's flow (`/api/connect/<id>`, a 302 into OAuth) in an in-app Safari.
 // SFSafariViewController shares the Safari cookie jar, so the flow authenticates
 // via the browser session (require_auth redirects an unauthed browser through
-// /auth/login → Cognito), stores the connection keyed by the same user sub the
-// app's Bearer carries, and returns to "/". On dismiss we refresh the statuses.
+// AuthKit on login.fastverk.com / app.fastverk.com), stores the connection keyed
+// by the same user sub the app's Bearer carries, and returns to "/". On dismiss
+// we refresh the statuses.
 //
 // This is what lets a user connect GitHub from the phone — the prerequisite for
 // the agents plugin's Dispatch/Cancel (the gateway needs X-Fastverk-Github-Token).
