@@ -23,10 +23,12 @@ Parameters:
     Description: The pre-existing GitHub Actions OIDC provider ARN.
   SubjectClaim:
     Type: String
-    Default: "repo:fastverk/fastverk-app:ref:refs/tags/*"
+    Default: "repo:fastverk/desktop:ref:refs/tags/*"
     Description: >
-      The GitHub OIDC `sub` this role trusts. Scoped to fastverk-app tag pushes
-      (v* macOS releases, ios-v* iOS releases) — not arbitrary branches.
+      The GitHub OIDC `sub` this role trusts. Scoped to this vehicle's tag
+      pushes (`fastverk-app/v*` macOS, later `ios-v*` if lifted) — not
+      arbitrary branches. The live role still trusts the retired
+      `fastverk/fastverk-app` remote until this stack is updated.
 
 Resources:
   CdnPushRole:

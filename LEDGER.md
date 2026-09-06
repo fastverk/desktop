@@ -34,7 +34,7 @@ library + `fvd` daemon, macOS app + credential helper). Do **not** rewrite
 | Module | Status | Source repo | Source SHA | `module(name)` | `module(version)` | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | fvkit | imported | [fastverk/fvkit](https://github.com/fastverk/fvkit) | `ca638b99462a0c9433bfc9845832568044829d31` | fvkit | 0.0.8 | cluster 1; source CI is `bazel test //...` on Linux and macOS plus `connection.proto` schema parity with tomato-bazel/cred-helper; tags `v0.0.1`–`v0.0.9`; MODULE.bazel on HEAD is `0.0.8` (kept); registry.tbzl.dev has `fvkit` 0.0.1–0.0.9 |
-| fastverk-app | imported | [fastverk/fastverk-app](https://github.com/fastverk/fastverk-app) | `985a7a0feee08a95e92331418a0c0f2eb28b6ed6` | fastverk-app | 0.0.2 | cluster 1; source CI is `bazel test //...` on macOS only (tao / tray-icon / eframe link macOS frameworks) plus Swift renderer builds (`//app/dashboard:fastverk-dashboard`, `//app/ios:FastverkConsole`); tags `v0.0.1`–`v0.0.5` and `ios-v0.0.1`–`ios-v0.0.7`; MODULE.bazel on HEAD is `0.0.2` (kept); registry.tbzl.dev has `fastverk-app` 0.0.1–0.0.2 |
+| fastverk-app | imported | [fastverk/fastverk-app](https://github.com/fastverk/fastverk-app) | `985a7a0feee08a95e92331418a0c0f2eb28b6ed6` | fastverk-app | 0.0.6 | cluster 1; source CI is `bazel test //...` on macOS only (tao / tray-icon / eframe link macOS frameworks) plus Swift renderer builds (`//app/dashboard:fastverk-dashboard`, `//app/ios:FastverkConsole`); historical source tags `v0.0.1`–`v0.0.5` and `ios-v0.0.1`–`ios-v0.0.7`; MODULE.bazel on HEAD is `0.0.6` (first vehicle app release, after source `v0.0.5`); registry.tbzl.dev still has `fastverk-app` 0.0.1–0.0.2 until `rels` publishes this version |
 
 ### Both source repos are retired
 
@@ -74,11 +74,12 @@ None. No residue from another imported module belongs here.
 
 ## Follow-up (not this PR)
 
-- [ ] Publish new versions from this vehicle's `<module>/vX.Y.Z` tags via
-      tomato-bazel/bazel-registry `rels`. Existing published versions keep
-      resolving to the historical per-repo tags (`fastverk/fvkit` `v0.0.8`,
-      `fastverk/fastverk-app` `v0.0.2`, etc.). Only **new** versions use this
-      vehicle's tags.
+- [ ] Publish new Bazel-registry versions from this vehicle's
+      `<module>/vX.Y.Z` tags via tomato-bazel/bazel-registry `rels`.
+      Existing published versions keep resolving to the historical
+      per-repo tags (`fastverk/fvkit` `v0.0.8`, `fastverk/fastverk-app`
+      `v0.0.2`, etc.). The macOS `.dmg` is a separate GitHub Release on
+      this repo (`fastverk-app/v*`); it does not wait on `rels`.
 - [ ] Source repos are not deleted or archived by this work.
 - [ ] Meta-repo macOS reconcile: [RECONCILE.md](RECONCILE.md). Port the
       (A) settings BuildBuddy UI on a macOS runner; do not copy trees

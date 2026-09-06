@@ -177,11 +177,12 @@ leave the meta tree as notice. If it is not, attach the hunk and re-class.
    `fvkit/crates/fvkit-core/src/connections.rs`? The helper "refuses" a
    provider that is not in the registry; the vehicle daemon still *can*
    create a `buildbuddy` connection. Two different layers.
-2. **C2 — `install.sh` download repo.** Vehicle
-   `fastverk-app/tools/macos/install.sh` still clones releases from
-   `fastverk/fastverk`. Updater + `release.yml` already use
-   `fastverk-app`. Repoint to `fastverk-app` now, or wait until this
-   vehicle publishes `<module>/vX.Y.Z`?
+2. **C2 — `install.sh` download repo.** Decided: `install.sh` now
+   downloads from `fastverk/desktop` (`fastverk-app/vX.Y.Z` tags). The
+   in-app updater still watches published `fvkit` 0.0.4
+   (`RELEASE_REPO = fastverk/fastverk-app`) until that crate is rebuilt
+   against this tree. Do not point `install.sh` at the retired
+   `fastverk/fastverk` or `fastverk/fastverk-app` remotes.
 3. **C3 — When to delete the meta copies.** Consolidation step 3 says:
    port (A), green macOS build, *then* delete meta
    `app/desktop`, `app/settings`, `tools/credhelper`, `tools/macos`, the

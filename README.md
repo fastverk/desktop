@@ -9,7 +9,7 @@ Bazel module.
 
 ```python
 bazel_dep(name = "fvkit", version = "0.0.8")
-bazel_dep(name = "fastverk-app", version = "0.0.2")
+bazel_dep(name = "fastverk-app", version = "0.0.6")
 ```
 
 Module names and versions are **not** lockstepped. A change that ships
@@ -32,11 +32,12 @@ desktop/
   LEDGER.md                 # every include / optional / absorb / exclude row
   RECONCILE.md              # macOS meta-repo vs this vehicle (file inventory)
   .github/workflows/ci.yml  # one path-filtered workflow
+  .github/workflows/release.yml  # macOS .dmg on `fastverk-app/v*` tags
   tools/ci/                 # affected-module detection + ledger check
   tools/ledger-check.sh     # CI entrypoint: LEDGER ↔ dirs ↔ MODULE.bazel
   tools/changed-modules.sh  # CI entrypoint: path → imported modules
   fvkit/                    # module(name = "fvkit", version = "0.0.8")
-  fastverk-app/             # module(name = "fastverk-app", version = "0.0.2")
+  fastverk-app/             # module(name = "fastverk-app", version = "0.0.6")
 ```
 
 One subdirectory per module. Each imported tree keeps the source repo's
@@ -57,7 +58,7 @@ Tags are **per module**, never repo-wide:
 <module>/vX.Y.Z
 ```
 
-Examples: `fvkit/v0.0.9`, `fastverk-app/v0.0.3`.
+Examples: `fvkit/v0.0.9`, `fastverk-app/v0.0.6`.
 
 Do not tag `v0.0.1` (or any other version) at the repository root. That would
 imply a lockstep bump of every module.
@@ -86,6 +87,34 @@ registry release must `strip_prefix` to.
    Existing published versions keep resolving to the historical per-repo tags
    (`fastverk/fvkit` `v0.0.8`, etc.). Only **new** versions use this vehicle's
    tags.
+
+## How to cut a macOS .dmg
+
+The installable app is a `fastverk-app` release, not a repo-wide tag.
+
+1. Bump `fastverk-app/MODULE.bazel` `module(version = ...)` and the matching
+   [LEDGER.md](LEDGER.md) row. Keep `fvkit` alone unless that module changed.
+2. Merge to this repo's default branch.
+3. Tag the merge commit and push:
+
+   ```sh
+   git tag fastverk-app/v0.0.6
+   git push origin fastverk-app/v0.0.6
+   ```
+
+4. [`.github/workflows/release.yml`](.github/workflows/release.yml) builds
+   `//tools/macos:fastverk_app` on `macos-latest`, attaches
+   `fastverk-vX.Y.Z.dmg` to a GitHub Release, and best-effort publishes to
+   `https://static.fastverk.com/apps/`.
+5. Install:
+
+   ```sh
+   bash fastverk-app/tools/macos/install.sh
+   # or: bash fastverk-app/tools/macos/install.sh fastverk-app/v0.0.6
+   ```
+
+Do not tag `v0.0.6` at the repository root. The nested
+`fastverk-app/.github/workflows/release.yml` does not run from this vehicle.
 
 ## Path-filtered CI
 

@@ -5,8 +5,9 @@
 # instead of the crate-version fallback — so a freshly-installed release stops
 # seeing itself as "update available".
 #
-# On a tagged release build the version is the tag (e.g. v0.0.4 -> 0.0.4);
-# locally it's `git describe` (e.g. 0.0.3-5-gabc123). Wired via
+# On a tagged release build the version is the tag (e.g. v0.0.4 -> 0.0.4,
+# or the vehicle tag fastverk-app/v0.0.6 -> 0.0.6); locally it's
+# `git describe` (e.g. 0.0.3-5-gabc123). Wired via
 # `build --workspace_status_command` in .bazelrc.
 set -euo pipefail
 
@@ -14,6 +15,8 @@ version="${FASTVERK_RELEASE_VERSION:-}"
 if [ -z "$version" ]; then
   version="$(git describe --tags --always --dirty 2>/dev/null || echo "0.0.0")"
 fi
+# Vehicle tags are `<module>/vX.Y.Z`; legacy source tags were `vX.Y.Z`.
+version="${version##*/}"
 version="${version#v}"
 
 echo "STABLE_FASTVERK_VERSION ${version}"
