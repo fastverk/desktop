@@ -2,7 +2,7 @@
 // plugin with no gRPC/describe). It exposes the coordination-CR list endpoints
 // (agents / tasks / builds / prompts) as one-shot JSON, and the live agent/build
 // transcript as SSE. All calls go through the console gateway `/api/gw/fleet/…`
-// with the Cognito Bearer; the gateway injects X-Fastverk-User-Sub server-side.
+// with the AuthKit Bearer; the gateway injects X-Fastverk-User-Sub server-side.
 //
 // The transcript SSE (`/view/<kind>/<name>`) is a durable JetStream replay + live
 // tail; `<name>` is the fleet Agent CR name (from `agents()`), NOT an AgentRun.id

@@ -31,7 +31,8 @@ struct RootView: View {
     }
 }
 
-/// The pre-auth screen: a single "Sign in" that launches the Cognito hosted UI.
+/// The pre-auth screen: a single "Sign in" that launches AuthKit via
+/// ASWebAuthenticationSession (login.fastverk.com).
 struct SignInView: View {
     @EnvironmentObject private var auth: AuthService
     @State private var signingIn = false

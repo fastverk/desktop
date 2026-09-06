@@ -1,7 +1,7 @@
 // AgentsClient — the agents plugin's write-side surface, which the meridian
 // descriptor can't express: Dispatch isn't a panel at all, and Cancel is a
 // bespoke action (its `{run_id}` path segment is substituted per row). All three
-// routes are under /api/gw/agents/ and carry the Cognito Bearer; the shell
+// routes are under /api/gw/agents/ and carry the AuthKit Bearer; the shell
 // gateway resolves the user's connected-GitHub token for the mutating ones.
 
 import Foundation

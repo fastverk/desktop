@@ -2,7 +2,7 @@
 // `GET /api/noc-agent/view` (SSE, HostEvents); a turn is sent with
 // `POST /api/noc-agent/turn` (a 202 ack — all content flows back through /view).
 // The conversation is keyed server-side by the signed-in user (the console
-// injects X-Fastverk-User-Sub from the Cognito session behind the Bearer), so no
+// injects X-Fastverk-User-Sub from the AuthKit session behind the Bearer), so no
 // conversation id is threaded from the client. Confirm-gated writes are
 // conversational: to confirm, just send another turn ("yes").
 

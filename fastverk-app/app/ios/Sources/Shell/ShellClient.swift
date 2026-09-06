@@ -5,7 +5,7 @@
 // server-driven `/api/shell/panel` (LayoutService.GetPanel), which 404s
 // ("no gRPC LayoutService") because no plugin implements that optional tier yet.
 // `/api/shell` is used only for the section order + entitlement gating. All calls
-// carry the Cognito Bearer id_token; codes are mapped per shell.rs / gateway.rs.
+// carry the AuthKit Bearer access token; codes are mapped per shell.rs / gateway.rs.
 
 import Foundation
 import MeridianUI

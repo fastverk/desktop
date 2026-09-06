@@ -1,8 +1,9 @@
 // NetworkRpcInvoker — the iOS RpcInvoker. Where the macOS Dashboard shells out
 // to fvd-json, this maps a meridian (service, method) call to the botnoc-web
-// gateway (`/api/gw/<plugin>/<path>`) over HTTPS with a Bearer id_token. It is
-// the native twin of the web's makeInvoker/endpointFor (botnoc web/static/assets
-// /main.js): the route table is assembled from each plugin's /describe manifest.
+// gateway (`/api/gw/<plugin>/<path>`) over HTTPS with a Bearer AuthKit access
+// token. It is the native twin of the web's makeInvoker/endpointFor (botnoc
+// web/static/assets/main.js): the route table is assembled from each plugin's
+// /describe manifest.
 
 import Foundation
 import MeridianUI

@@ -1,7 +1,7 @@
 """The fastverk iOS console — a native meridian renderer over the cloud backend.
 
 A universal (iPhone + iPad) app that renders the same console the web serves
-(app.fastverk.com): it signs in via Cognito (ASWebAuthenticationSession + PKCE),
+(app.fastverk.com): it signs in via WorkOS AuthKit (ASWebAuthenticationSession + PKCE),
 fetches the server-driven NavTree + per-panel PanelBundles from the botnoc-web
 `/api/shell/*` facade, and drives them with the meridian Swift renderer
 (@meridian//swift:MeridianUI) over a networked RpcInvoker (/api/gw/*). No local
