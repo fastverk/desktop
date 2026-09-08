@@ -75,6 +75,9 @@ def affected(modules: list[str], files: list[str]) -> list[str]:
         prefix = name + "/"
         if any(f == name or f.startswith(prefix) for f in files):
             hit.append(name)
+    # The app packages its sibling fvd and uses its generated contracts.
+    if "fvkit" in hit and "fastverk-app" in modules and "fastverk-app" not in hit:
+        hit.append("fastverk-app")
     return hit
 
 

@@ -394,6 +394,13 @@ impl Maintenance for MaintenanceService {
 /// underlying `axum::Router` only to attach a catch-all `fallback_service`, then
 /// hand it back to tonic to serve.
 fn gateway(plugins: Arc<crate::plugins::Registry>) -> Routes {
+    gateway_with_workspace(plugins, crate::workspace::Service::default())
+}
+
+pub(crate) fn gateway_with_workspace(
+    plugins: Arc<crate::plugins::Registry>,
+    workspace: crate::workspace::Service,
+) -> Routes {
     let proxy = tower::service_fn(move |req: http::Request<AxumBody>| {
         let plugins = plugins.clone();
         async move { Ok::<_, std::convert::Infallible>(crate::plugins::route(plugins, req).await) }
@@ -401,6 +408,9 @@ fn gateway(plugins: Arc<crate::plugins::Registry>) -> Routes {
     // fvd's core services (Fvd + the in-process identity Auth — dogfooding the
     // plugin contract) route normally; everything else hits the plugin router.
     let router = Routes::new(FvdServer::new(FvdService::default()))
+        .add_service(
+            fvkit::workspace_proto::workspace_service_server::WorkspaceServiceServer::new(workspace),
+        )
         .add_service(AuthServer::new(crate::auth::AuthService))
         .add_service(MaintenanceServer::new(MaintenanceService::default()))
         .into_axum_router()

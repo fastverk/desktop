@@ -35,3 +35,11 @@ bazel test //...
 
 The proto is compiled by `build.rs` under a `cargo_build_script`, so the only
 Bazel codegen dependency is `protobuf` (for `protoc`).
+
+## Managed workspaces
+
+`fvd` also hosts `fastverk.workspace.v1.WorkspaceService`, backed by a durable
+protobuf catalog. `fv-workspace` registers existing clones, provisions task
+worktrees in normalized roots, manages ownership, and explains safe collection.
+See [the lifecycle guide](docs/managed-workspaces.md) for CLI examples, recovery,
+Dashboard views, and the Tomato Bazel adapter boundary.

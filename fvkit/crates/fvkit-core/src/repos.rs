@@ -393,6 +393,7 @@ pub fn worktree_add(
 
 /// Remove the worktree at `path`.
 pub fn worktree_remove(path: &Path, force: bool) -> Result<bool> {
+    crate::workspace::Store::configured()?.ensure_unmanaged(path)?;
     let p = path.to_string_lossy().into_owned();
     let mut args = vec!["worktree", "remove"];
     if force {

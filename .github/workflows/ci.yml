@@ -3,7 +3,7 @@
 #
 # Path filter: tools/ci/affected.py (tools/changed-modules.sh) maps the
 # PR/push diff onto directories that contain MODULE.bazel. A change under
-# fvkit/ does not test fastverk-app/.
+# fvkit/ also tests fastverk-app/, which packages its sibling daemon.
 
 name: ci
 
@@ -27,7 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: check LEDGER.md vs on-disk modules
-        run: bash tools/ledger-check.sh
+        run: |
+          bash tools/ledger-check.sh
+          python3 -m unittest discover -s tools/ci -p 'test_*.py'
 
   detect:
     name: detect affected modules

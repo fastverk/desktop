@@ -62,6 +62,9 @@ fn main() -> ExitCode {
 /// Map one `(service, method)` to fvkit's sync core and return JSON. Mirrors
 /// the fvd handlers (app/daemon/src/server.rs).
 fn dispatch(service: &str, method: &str, req: &Value) -> Result<Value, String> {
+    if service == "fastverk.workspace.v1.WorkspaceService" {
+        return workspace_view(method);
+    }
     if service != "fastverk.v1.Fvd" {
         return Err(format!("unknown service: {service}"));
     }
@@ -243,4 +246,29 @@ fn connection_to_json(c: Connection) -> Value {
         "token_expires_at": c.token_expires_at,
         "connected_at": c.connected_at,
     })
+}
+
+// Existing dashboard JSON projection; lifecycle state remains protobuf and all
+// mutations go through fvd. Reads use the atomic journal like the other panels.
+fn workspace_view(method: &str) -> Result<Value, String> {
+    use fvkit::workspace_proto::{OperationPhase, WorkspacePhase};
+    let store = fvkit::workspace::Store::configured().map_err(err_str)?;
+    match method {
+        "Snapshot" => {
+            let s = store.snapshot().map_err(err_str)?;
+            Ok(json!({
+                "revision": s.revision,
+                "projects": s.projects.into_iter().map(|p| json!({"id":p.id,"display_name":p.display_name,"revision":p.revision,"repository_ids":p.repository_ids.join(", "),"retention_seconds":p.retention_seconds})).collect::<Vec<_>>(),
+                "workspaces": s.workspaces.into_iter().map(|w| json!({"id":w.id,"project_id":w.project_id,"display_name":w.display_name,"path":w.path,"revision":w.revision,"phase":WorkspacePhase::try_from(w.phase).map_or("UNKNOWN", |p| p.as_str_name()),"owner":w.lease.map(|l|l.owner).unwrap_or_default()})).collect::<Vec<_>>(),
+                "operations": s.operations.into_iter().map(|o| json!({"id":o.id,"phase":OperationPhase::try_from(o.phase).map_or("UNKNOWN", |p|p.as_str_name()),"detail":o.detail,"revision":o.revision})).collect::<Vec<_>>(),
+            }))
+        }
+        "Inspections" => {
+            let s = store.inspections().map_err(err_str)?;
+            Ok(
+                json!({"inspections":s.inspections.into_iter().map(|i|json!({"workspace":i.workspace.map(|w|json!({"id":w.id,"project_id":w.project_id})),"collectable":i.collectable,"retention_reasons":i.retention_reasons.join("; ")})).collect::<Vec<_>>() }),
+            )
+        }
+        _ => Err(format!("unknown workspace method: {method}")),
+    }
 }

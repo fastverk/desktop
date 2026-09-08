@@ -26,6 +26,7 @@ macos_app_bundle(
     binaries = {
         "//app/desktop:fastverk": "fastverk",
         "@fvkit//app/daemon:fvd": "fvd",
+        "@fvkit//app/daemon:fv-workspace": "fv-workspace",
         "//app/settings:fastverk-settings": "fastverk-settings",
         # The SwiftUI Dashboard window (a meridian renderer) + the JSON shim
         # it shells out to for fvd RPCs. The shim reaches fvd over the socket;
