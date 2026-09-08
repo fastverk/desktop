@@ -231,3 +231,60 @@ panels {
     }
   }
 }
+
+# Managed lifecycle views share the catalog's stable IDs and operation journal.
+panels {
+  panel_id: "projects"
+  title: "Projects"
+  table {
+    populate { service: "fastverk.workspace.v1.WorkspaceService" method: "Snapshot" }
+    rows_field: "projects"
+    item_noun: "projects"
+    placeholder: "Register repositories and create a project with fv-workspace."
+    columns { header: "Project" field_path: "display_name" pref_width: 26 }
+    columns { header: "ID" field_path: "id" pref_width: 22 }
+    columns { header: "Repositories" field_path: "repository_ids" pref_width: 40 }
+    columns { header: "Revision" field_path: "revision" pref_width: 10 }
+  }
+}
+panels {
+  panel_id: "managed-workspaces"
+  title: "Workspaces"
+  table {
+    populate { service: "fastverk.workspace.v1.WorkspaceService" method: "Snapshot" }
+    rows_field: "workspaces"
+    item_noun: "workspaces"
+    placeholder: "Provision a workspace from explicit repository revisions."
+    columns { header: "Workspace" field_path: "id" pref_width: 24 }
+    columns { header: "Project" field_path: "project_id" pref_width: 22 }
+    columns { header: "Phase" field_path: "phase" pref_width: 26 }
+    columns { header: "Owner" field_path: "owner" pref_width: 20 }
+    columns { header: "Path" field_path: "path" pref_width: 48 }
+  }
+}
+panels {
+  panel_id: "workspace-hygiene"
+  title: "Workspace hygiene"
+  table {
+    populate { service: "fastverk.workspace.v1.WorkspaceService" method: "Inspections" }
+    rows_field: "inspections"
+    item_noun: "workspaces"
+    placeholder: "No retained workspaces."
+    columns { header: "Workspace" field_path: "workspace.id" pref_width: 24 }
+    columns { header: "Collectable" field_path: "collectable" pref_width: 12 }
+    columns { header: "Retained because" field_path: "retention_reasons" pref_width: 80 }
+  }
+}
+panels {
+  panel_id: "workspace-operations"
+  title: "Workspace operations"
+  table {
+    populate { service: "fastverk.workspace.v1.WorkspaceService" method: "Snapshot" }
+    rows_field: "operations"
+    item_noun: "operations"
+    placeholder: "No lifecycle operations yet."
+    columns { header: "Request" field_path: "id" pref_width: 28 }
+    columns { header: "Phase" field_path: "phase" pref_width: 24 }
+    columns { header: "Detail" field_path: "detail" pref_width: 72 }
+  }
+}

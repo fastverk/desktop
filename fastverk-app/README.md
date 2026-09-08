@@ -55,3 +55,17 @@ These are `manual` + `local` (non-hermetic `codesign` / `hdiutil`), so the
 
 > The `fv` CLI (from the fastverk meta-repo) is intentionally **not** bundled
 > yet — it has no release artifact. See the TODO in `tools/macos/BUILD.bazel`.
+
+### Managed workspace views
+
+The Dashboard includes Projects, Workspaces, Workspace hygiene, and Workspace
+operations backed by `fastverk.workspace.v1.WorkspaceService` records. The app
+bundle includes `fv-workspace`, the generated gRPC CLI. Lifecycle mutations go
+through `fvd`; opening these panels reads the atomic catalog without mutating it.
+See [the lifecycle guide](../fvkit/docs/managed-workspaces.md).
+
+Root-module Bazel builds resolve `fvkit` from the sibling directory in this
+Git vehicle, so the packaged daemon, clients, and descriptors match. Build from
+a complete `fastverk/desktop` checkout; extracting just this subdirectory is no
+longer sufficient for an app build. The override does not affect downstream
+modules that depend on `fastverk-app`.

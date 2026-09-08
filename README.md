@@ -120,7 +120,8 @@ Do not tag `v0.0.6` at the repository root. The nested
 
 There is one workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-A change under `fvkit/` runs that module's tests, not the whole tree. The
+A change under `fvkit/` runs its tests and the `fastverk-app` checks because the
+app packages the sibling daemon and consumes its generated contracts. The
 detector is [`tools/ci/affected.py`](tools/ci/affected.py) (also
 [`tools/changed-modules.sh`](tools/changed-modules.sh)): it diffs against the
 PR base (or the push before-SHA) and maps paths to immediate children that
@@ -128,7 +129,7 @@ contain `MODULE.bazel`.
 
 | Change | What runs |
 | --- | --- |
-| `fvkit/**` | `fvkit` only |
+| `fvkit/**` | `fvkit` and `fastverk-app` |
 | `fvkit/**` and `fastverk-app/**` | those two modules |
 | `.github/workflows/ci.yml` or `tools/ci/**` | every imported module |
 | `README.md` / `LEDGER.md` only | ledger check, no module test matrix |

@@ -26,3 +26,14 @@ rust_test(
 )
 
 exports_files(["Cargo.toml"])
+
+# Same generated tonic clients/runtime as the daemon; no separate dependency hub.
+rust_binary(
+    name = "fv-workspace",
+    srcs = ["client/workspace.rs"],
+    edition = "2021",
+    deps = ["//app/core:fvkit"] + all_crate_deps(
+        package_name = "app/daemon",
+        normal = True,
+    ),
+)

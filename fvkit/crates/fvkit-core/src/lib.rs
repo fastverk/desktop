@@ -89,3 +89,9 @@ pub fn version() -> &'static str {
         _ => env!("CARGO_PKG_VERSION"),
     }
 }
+
+/// Local workspace lifecycle and catalog contract.
+pub mod workspace_proto {
+    tonic::include_proto!("fastverk.workspace.v1");
+}
+pub mod workspace;

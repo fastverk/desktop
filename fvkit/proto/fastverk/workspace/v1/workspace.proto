@@ -1,0 +1,178 @@
+syntax = "proto3";
+package fastverk.workspace.v1;
+
+// Local lifecycle API. IDs are stable path-safe tokens, independent of labels.
+// The daemon is the sole writer. Mutations are journaled before Git side effects;
+// retry the identical request_id to resume an interrupted operation.
+service WorkspaceService {
+  rpc Snapshot(SnapshotRequest) returns (WorkspaceSnapshot);
+  // Snapshot replacement stream: after_revision is a cursor, not an event log.
+  // Reconnect receives the latest snapshot, including durable operation records.
+  rpc Watch(SnapshotRequest) returns (stream WorkspaceSnapshot);
+  rpc Apply(WorkspaceCommand) returns (WorkspaceOperation);
+  rpc Inspections(SnapshotRequest) returns (WorkspaceInspections);
+  rpc Inspect(InspectRequest) returns (WorkspaceInspection);
+  rpc ResolveBuildContext(InspectRequest) returns (BuildContext);
+}
+message SnapshotRequest { uint64 after_revision = 1; }
+message InspectRequest { string workspace_id = 1; }
+message Repository {
+  string id = 1;
+  string host = 2;
+  string namespace = 3; // Full slash-separated namespace, including subgroups.
+  string name = 4;
+  string path = 5; // Existing clone to adopt; empty clones into the normalized repos root.
+  string clone_url = 6; // For cloning: canonical HTTPS or git@host URL, no embedded tokens.
+  bool ready = 7; // False while an interrupted clone needs reconciliation.
+}
+message ProjectSpec {
+  string id = 1;
+  string display_name = 2;
+  repeated string repository_ids = 3;
+  uint64 revision = 4;
+  uint64 retention_seconds = 5;
+  repeated string validation_targets = 6;
+}
+message RepositoryInput {
+  string repository_id = 1;
+  string base_revision = 2; // Explicit ref; resolved and pinned before provisioning.
+}
+message WorkspaceCheckout {
+  string repository_id = 1;
+  string path = 2;
+  string base_commit = 3;
+  string branch = 4;
+  bool removed = 5;
+  bool removal_started = 6; // Durable intent permits recovery after Git removal.
+}
+enum WorkspacePhase {
+  WORKSPACE_PHASE_UNSPECIFIED = 0;
+  WORKSPACE_PHASE_PROVISIONING = 1;
+  WORKSPACE_PHASE_READY = 2;
+  WORKSPACE_PHASE_ACTIVE = 3;
+  WORKSPACE_PHASE_RELEASED = 4;
+  WORKSPACE_PHASE_REMOVING = 5;
+  WORKSPACE_PHASE_REMOVED = 6;
+}
+message WorkspaceLease {
+  string owner = 1;
+  uint64 generation = 2;
+  int64 expires_at = 3;
+}
+message IntegrationEvidence {
+  string repository_id = 1;
+  string source_commit = 2;
+  string target_commit = 3;
+}
+message ManagedWorkspace {
+  string id = 1;
+  string project_id = 2;
+  string display_name = 3;
+  string path = 4;
+  ProjectSpec project = 5; // Pinned specification, unaffected by later edits.
+  repeated WorkspaceCheckout checkouts = 6;
+  WorkspacePhase phase = 7;
+  uint64 revision = 8;
+  WorkspaceLease lease = 9;
+  int64 created_at = 10;
+  int64 released_at = 11;
+  int64 collect_after = 12;
+  string abandonment_reason = 13;
+  repeated IntegrationEvidence integration = 14;
+}
+message RegisterRepository { Repository repository = 1; }
+message PutProject { ProjectSpec project = 1; uint64 expected_revision = 2; }
+message ProvisionWorkspace {
+  string id = 1;
+  string project_id = 2;
+  string display_name = 3;
+  repeated RepositoryInput inputs = 4;
+}
+message LeaseWorkspace {
+  string workspace_id = 1;
+  string owner = 2;
+  uint64 generation = 3; // 0 for first acquisition; required for renewal/takeover.
+  uint64 expected_revision = 4;
+  uint64 ttl_seconds = 5; // 1..3600. Expiry alone never authorizes collection.
+}
+message ReleaseWorkspace {
+  string workspace_id = 1;
+  string owner = 2;
+  uint64 generation = 3;
+  uint64 expected_revision = 4;
+  // Explicit abandonment OR one target ref per checkout proving ancestry.
+  string abandonment_reason = 5;
+  repeated RepositoryInput integrated_into = 6;
+}
+message CollectWorkspace {
+  string workspace_id = 1;
+  uint64 expected_revision = 2;
+}
+message WorkspaceCommand {
+  string request_id = 1;
+  oneof action {
+    RegisterRepository register_repository = 2;
+    PutProject put_project = 3;
+    ProvisionWorkspace provision = 4;
+    LeaseWorkspace lease = 5;
+    ReleaseWorkspace release = 6;
+    CollectWorkspace collect = 7;
+  }
+}
+enum OperationPhase {
+  OPERATION_PHASE_UNSPECIFIED = 0;
+  OPERATION_PHASE_RUNNING = 1;
+  OPERATION_PHASE_SUCCEEDED = 2;
+  OPERATION_PHASE_BLOCKED = 3; // Same request may be retried after resolving detail.
+}
+message WorkspaceOperation {
+  string id = 1;
+  WorkspaceCommand command = 2;
+  OperationPhase phase = 3;
+  string detail = 4;
+  uint64 revision = 5;
+}
+// Atomic, fsync'd daemon journal. Also the snapshot for catalog/project views.
+message WorkspaceSnapshot {
+  uint32 schema_version = 1;
+  uint64 revision = 2;
+  string root = 3;
+  repeated Repository repositories = 4;
+  repeated ProjectSpec projects = 5;
+  repeated ManagedWorkspace workspaces = 6;
+  repeated WorkspaceOperation operations = 7;
+}
+message CheckoutInspection {
+  string repository_id = 1;
+  string path = 2;
+  string head = 3;
+  bool dirty = 4;
+  bool ignored_files = 5;
+  string problem = 6;
+}
+message WorkspaceInspections { repeated WorkspaceInspection inspections = 1; }
+message WorkspaceInspection {
+  ManagedWorkspace workspace = 1;
+  repeated CheckoutInspection checkouts = 2;
+  bool collectable = 3;
+  repeated string retention_reasons = 4;
+}
+// Adapter contract for Tomato Bazel. This observation is NOT an immutable input
+// snapshot or a validation result; consumers must snapshot declared inputs before
+// remote execution. Dirty work never inherits clean-commit cache identity.
+message BuildSource {
+  string repository_id = 1;
+  string checkout_path = 2;
+  string commit = 3;
+  bool dirty = 4;
+}
+message BuildContext {
+  string workspace_id = 1;
+  string project_id = 2;
+  uint64 project_revision = 3;
+  repeated BuildSource sources = 4;
+  repeated string validation_targets = 5;
+  string output_base = 6;
+  string artifact_directory = 7;
+  bool requires_input_snapshot = 8;
+}

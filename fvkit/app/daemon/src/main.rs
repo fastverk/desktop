@@ -12,6 +12,7 @@ mod auth;
 mod plugins;
 mod sched;
 mod server;
+mod workspace;
 
 #[tokio::main]
 async fn main() -> Result<()> {

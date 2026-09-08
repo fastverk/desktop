@@ -14,6 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .compile_protos(
             &[
                 "../../proto/fastverk/v1/fvd.proto",
+            "../../proto/fastverk/workspace/v1/workspace.proto",
                 "../../proto/fastverk/v1/connection.proto",
                 "../../proto/fastverk/v1/maintenance.proto",
                 "../../proto/fastverk/v1/repos.proto",
