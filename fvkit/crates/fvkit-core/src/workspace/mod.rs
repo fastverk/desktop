@@ -75,6 +75,22 @@ impl Store {
     pub fn apply(&self, command: WorkspaceCommand) -> Result<WorkspaceOperation> {
         token(&command.request_id)?;
         anyhow::ensure!(command.action.is_some(), "action required");
+        // Reject credential-bearing URLs before persisting the request itself,
+        // not merely before cloning. The operation journal retains its payload.
+        if let Some(Action::RegisterRepository(request)) = &command.action {
+            let r = request.repository.as_ref().context("repository required")?;
+            token(&r.host)?;
+            namespace(&r.namespace)?;
+            token(&r.name)?;
+            if !r.clone_url.is_empty() {
+                let https = format!("https://{}/{}/{}.git", r.host, r.namespace, r.name);
+                let ssh = format!("git@{}:{}/{}.git", r.host, r.namespace, r.name);
+                anyhow::ensure!(
+                    r.clone_url == https || r.clone_url == ssh,
+                    "clone URL must be canonical and contain no embedded credentials"
+                );
+            }
+        }
         safe_path(&self.state)?;
         fs::create_dir_all(&self.state)?;
         let path = self.state.join("writer.lock");

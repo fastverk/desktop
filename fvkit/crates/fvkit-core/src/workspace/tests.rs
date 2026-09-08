@@ -517,3 +517,24 @@ fn legacy_removal_cannot_bypass_workspace_ownership() {
         .is_err());
     assert!(f.store.ensure_unmanaged(&f.repo).is_ok());
 }
+
+#[test]
+fn credential_bearing_urls_never_enter_the_operation_journal() {
+    let f = Fixture::new();
+    let before = f.store.snapshot().unwrap();
+    let command = WorkspaceCommand {
+        request_id: "secret-url".into(),
+        action: Some(Action::RegisterRepository(RegisterRepository {
+            repository: Some(Repository {
+                id: "new".into(),
+                host: "github.com".into(),
+                namespace: "fastverk".into(),
+                name: "new".into(),
+                clone_url: "https://token@example.invalid/fastverk/new.git".into(),
+                ..Default::default()
+            }),
+        })),
+    };
+    assert!(f.store.apply(command).is_err());
+    assert_eq!(f.store.snapshot().unwrap(), before);
+}
